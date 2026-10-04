@@ -1,0 +1,17 @@
+{
+  "name": "scout-bridge",
+  "version": "1.0.0",
+  "description": "Native messaging bridge between Scout browser extension and local Ollama/CLI",
+  "main": "index.js",
+  "bin": {
+    "scout-bridge": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "install-host": "node install.js"
+  },
+  "dependencies": {},
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
