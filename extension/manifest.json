@@ -32,10 +32,11 @@
         "content/copilot/command-palette.js",
         "content/copilot/bulk-actions.js",
         "content/copilot/claude-export.js",
+        "content/chat-panel/chat-panel.js",
         "content/ui/overlay.js",
         "content/content.js"
       ],
-      "css": ["content/ui/overlay.css"],
+      "css": ["content/ui/overlay.css", "content/chat-panel/chat-panel.css"],
       "run_at": "document_idle"
     }
   ],

@@ -102,6 +102,78 @@ function queryAI(prompt, systemPrompt, model = config.default_model || 'mistral:
   });
 }
 
+// Query AI with full conversation history (for chat endpoint)
+function queryChatAI(messages, model = config.default_model || 'mistral:7b') {
+  return new Promise((resolve, reject) => {
+    let endpoint, postData, headers;
+
+    if (API_FORMAT === 'openai') {
+      endpoint = `${BASE_URL}/v1/chat/completions`;
+      postData = JSON.stringify({
+        model: model,
+        messages: messages,
+        stream: false,
+        temperature: 0.7
+      });
+      headers = {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData)
+      };
+      if (AUTH_TOKEN) {
+        headers['Authorization'] = `Bearer ${AUTH_TOKEN}`;
+        headers['x-api-key'] = AUTH_TOKEN;
+      }
+    } else {
+      // Ollama native: convert messages to single prompt
+      const systemMsg = messages.find(m => m.role === 'system');
+      const chatMsgs = messages.filter(m => m.role !== 'system');
+      const prompt = chatMsgs.map(m => `${m.role}: ${m.content}`).join('\n\n');
+
+      endpoint = `${BASE_URL}/api/generate`;
+      postData = JSON.stringify({
+        model: model,
+        prompt: systemMsg ? `${systemMsg.content}\n\n${prompt}` : prompt,
+        stream: false
+      });
+      headers = {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData)
+      };
+      if (AUTH_TOKEN) {
+        headers['Authorization'] = `Bearer ${AUTH_TOKEN}`;
+      }
+    }
+
+    const url = new URL(endpoint);
+    const client = url.protocol === 'https:' ? require('https') : http;
+
+    const req = client.request(
+      endpoint,
+      { method: 'POST', headers, timeout: 120000 },
+      (res) => {
+        let data = '';
+        res.on('data', (chunk) => data += chunk);
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(data);
+            if (API_FORMAT === 'openai') {
+              resolve(parsed.choices?.[0]?.message?.content || parsed.content?.[0]?.text || '');
+            } else {
+              resolve(parsed.response || '');
+            }
+          } catch (e) {
+            reject(new Error('Invalid response: ' + data.slice(0, 200)));
+          }
+        });
+      }
+    );
+    req.on('error', reject);
+    req.on('timeout', () => reject(new Error('AI request timed out')));
+    req.write(postData);
+    req.end();
+  });
+}
+
 function interpolate(template, vars) {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] || '');
 }
@@ -141,9 +213,32 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // Route handlers
+  if (req.method === 'POST' && req.url === '/chat') {
+    let body = '';
+    req.on('data', (chunk) => body += chunk);
+    req.on('end', async () => {
+      try {
+        const msg = JSON.parse(body);
+        const { messages, model } = msg;
+
+        log(`Chat | Model: ${model || config.default_model} | Messages: ${messages?.length || 0}`);
+
+        const response = await queryChatAI(messages, model || config.default_model);
+        res.writeHead(200);
+        res.end(JSON.stringify({ response }));
+      } catch (e) {
+        log('Chat error:', e.message);
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
+    return;
+  }
+
   if (req.method !== 'POST' || req.url !== '/analyze') {
     res.writeHead(404);
-    res.end(JSON.stringify({ error: 'Not found. Use GET /health or POST /analyze' }));
+    res.end(JSON.stringify({ error: 'Not found. Use GET /health, POST /analyze, or POST /chat' }));
     return;
   }
 
@@ -227,6 +322,11 @@ server.listen(PORT, HOST, () => {
   log(`   Backend: ${BASE_URL}`);
   log(`   Model: ${config.default_model || 'mistral:7b'}`);
   if (AUTH_TOKEN) log(`   Auth: configured`);
+  log('');
+  log('Endpoints:');
+  log('  GET  /health     — Server status');
+  log('  POST /analyze    — Site analysis (Scout overlay)');
+  log('  POST /chat       — Conversation chat (Scout Chat panel)');
   log('');
   log('Make sure your AI backend is running:');
   if (API_FORMAT === 'openai') {

@@ -17,6 +17,14 @@ A browser extension that reads the room. It detects what type of site you're on 
 | **News/Blogs** | Clickbait detection, weak sourcing, bias indicators, thin reporting flags |
 | **Chat / Conversations** | Manipulation tactics, pressure techniques, AI jailbreak attempts, prompt injection detection |
 
+### 💬 Scout Chat (Built-in AI Chat Panel)
+| Feature | Hotkey | What It Does |
+|---------|--------|--------------|
+| **Open Chat** | `Alt+Shift+C` or click 🧭 button | Slide-out chat panel with full AI conversation |
+| **Page-Aware Q&A** | Just ask | AI knows what page you're on and answers in context |
+| **Quick Actions** | Click buttons | "Analyze red flags", "Summarize", "Safety check", "ELI5" |
+| **Conversation History** | Automatic | Maintains context across messages |
+
 ### 🤖 Surfing Copilot Features
 | Feature | Hotkey | What It Does |
 |---------|--------|--------------|
@@ -104,12 +112,18 @@ Keep this terminal running.
 
 Browse to any job post, social feed, product page, article, or chat. Scout will auto-detect the site type and overlay insights.
 
+**Try Scout Chat:**
+- Press `Alt+Shift+C` → open the chat panel
+- Ask "What red flags do you see on this page?"
+- Click quick buttons: "🚨 Analyze Red Flags", "📝 Summarize", etc.
+
 **Try the Copilot features:**
 - Type in a search box → see inline suggestions
 - Press `Alt+H` on a suspicious button → see what it really does
 - Press `Alt+Space` → run commands like "summarize page"
 - Press `Alt+G` in a message field → generate a reply draft
 - Press `Alt+B` → bulk-select links to open or copy
+- Press `Alt+C` → export findings for Claude review
 
 **No server running?** You'll still see instant heuristics and all Copilot features, but the AI insights will show an offline warning.
 
@@ -157,7 +171,11 @@ scout-extension/
 │       │   ├── explainer.js       # Alt+H hover explanations
 │       │   ├── draft-reply.js     # Alt+G reply generator
 │       │   ├── command-palette.js # Alt+Space commands
-│       │   └── bulk-actions.js    # Alt+B multi-select
+│       │   ├── bulk-actions.js    # Alt+B multi-select
+│       │   └── claude-export.js   # Alt+C export for Claude review
+│       ├── chat-panel/
+│       │   ├── chat-panel.js      # Scout Chat panel
+│       │   └── chat-panel.css     # Chat panel styles
 │       └── ui/
 │           ├── overlay.js       # Draggable Pro Panel
 │           └── overlay.css      # Glassmorphism UI
