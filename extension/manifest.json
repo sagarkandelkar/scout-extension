@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Scout — Surfing Co-Pilot",
-  "version": "1.1.0",
-  "description": "Context-aware AI guidance + Surfing Copilot features. Local-first.",
+  "name": "Scout Sentinel",
+  "version": "2.0.0",
+  "description": "Spatial ambient intelligence for the web. One orb. One HUD. Inline pins. Selection lens.",
   "permissions": [
     "activeTab",
     "scripting",
@@ -26,26 +26,21 @@
         "content/analyzers/shopping.js",
         "content/analyzers/news.js",
         "content/analyzers/chat.js",
-        "content/copilot/inline-suggest.js",
-        "content/copilot/explainer.js",
-        "content/copilot/draft-reply.js",
-        "content/copilot/command-palette.js",
-        "content/copilot/bulk-actions.js",
-        "content/copilot/claude-export.js",
-        "content/chat-panel/chat-panel.js",
-        "content/ui/overlay.js",
+        "content/sentinel/sentinel.js",
         "content/content.js"
       ],
-      "css": ["content/ui/overlay.css", "content/chat-panel/chat-panel.css"],
+      "css": ["content/sentinel/sentinel.css"],
       "run_at": "document_idle"
     }
   ],
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_title": "Scout Sentinel"
   },
+  "icons": {},
   "web_accessible_resources": [
     {
-      "resources": ["content/ui/*", "content/copilot/*"],
+      "resources": ["content/sentinel/*"],
       "matches": ["<all_urls>"]
     }
   ]
