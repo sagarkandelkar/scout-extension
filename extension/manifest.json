@@ -31,6 +31,7 @@
         "content/copilot/draft-reply.js",
         "content/copilot/command-palette.js",
         "content/copilot/bulk-actions.js",
+        "content/copilot/claude-export.js",
         "content/ui/overlay.js",
         "content/content.js"
       ],
