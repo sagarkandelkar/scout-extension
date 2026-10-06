@@ -1,6 +1,8 @@
 {
-  "default_model": "llama3.2",
+  "default_model": "kimi-k2.7-code:cloud",
   "ollama_url": "http://localhost:11434",
+  "api_format": "openai",
+  "_comment": "Set api_format to 'openai' if using Ollama's /v1/chat/completions endpoint or Anthropic-style proxy",
   "prompts": {
     "job": {
       "system": "You are an expert career advisor and recruiter insider. Analyze job postings critically. Identify red flags, unrealistic expectations, hidden costs, and growth opportunities. Be concise, punchy, and actionable.",
@@ -17,6 +19,10 @@
     "news": {
       "system": "You are a media literacy expert. Assess reporting quality, sourcing strength, bias indicators, and content value. Be concise.",
       "template": "Analyze this article:\n\nHeadline: {{headline}}\nByline: {{byline}}\nURL: {{url}}\nBody excerpt: {{body}}\n\nProvide 3-4 insights: reporting quality, bias signals, whether to trust/share this. Return JSON array: [{title, description, severity}]."
+    },
+    "chat": {
+      "system": "You are a conversational intelligence analyst. Detect manipulation tactics, communication quality issues, and social engineering markers in chat transcripts. Be direct and actionable.",
+      "template": "Analyze this conversation on {{platform}}:\n\nLast messages:\n{{lastMessages}}\n\nURL: {{url}}\n\nProvide 3-5 insights: manipulation tactics detected, communication red flags, AI-specific issues (if applicable), and recommended response strategy. Return JSON array: [{title, description, severity}]."
     },
     "selection": {
       "system": "You are a critical thinking assistant. Analyze selected text from any web page and provide context, fact-check hints, or reading recommendations.",

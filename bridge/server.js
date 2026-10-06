@@ -3,7 +3,7 @@
  * Scout Local Server
  * Runs a lightweight HTTP server on localhost:8765
  * Extension connects directly — no Native Messaging needed
- * Forwards requests to local Ollama
+ * Supports Ollama native API and OpenAI-compatible endpoints
  */
 
 const http = require('http');
@@ -19,39 +19,84 @@ try { config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); } catch (e) {
   console.error('[scout-server] Could not load commands.json:', e.message);
 }
 
+// Optional auth token (for Anthropic-style proxies)
+const AUTH_TOKEN = process.env.ANTHROPIC_AUTH_TOKEN || process.env.OLLAMA_AUTH_TOKEN || '';
+
 function log(...args) {
   console.log('[scout-server]', ...args);
 }
 
-// Query Ollama
-function queryOllama(prompt, model = config.default_model || 'llama3.2') {
+// Detect API format
+const API_FORMAT = config.api_format || 'ollama';
+const BASE_URL = config.ollama_url || 'http://localhost:11434';
+
+// Query AI backend — supports Ollama native and OpenAI-compatible formats
+function queryAI(prompt, systemPrompt, model = config.default_model || 'mistral:7b') {
   return new Promise((resolve, reject) => {
-    const postData = JSON.stringify({ model, prompt, stream: false });
-    const req = require('http').request(
-      `${config.ollama_url || 'http://localhost:11434'}/api/generate`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(postData)
-        },
-        timeout: 120000
-      },
+    let endpoint, postData, headers;
+
+    if (API_FORMAT === 'openai') {
+      // OpenAI-compatible / Anthropic-style endpoint
+      endpoint = `${BASE_URL}/v1/chat/completions`;
+      postData = JSON.stringify({
+        model: model,
+        messages: [
+          { role: 'system', content: systemPrompt || 'You are a helpful assistant.' },
+          { role: 'user', content: prompt }
+        ],
+        stream: false,
+        temperature: 0.7
+      });
+      headers = {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData)
+      };
+      if (AUTH_TOKEN) {
+        headers['Authorization'] = `Bearer ${AUTH_TOKEN}`;
+        headers['x-api-key'] = AUTH_TOKEN;
+      }
+    } else {
+      // Ollama native format
+      endpoint = `${BASE_URL}/api/generate`;
+      postData = JSON.stringify({
+        model: model,
+        prompt: systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt,
+        stream: false
+      });
+      headers = {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData)
+      };
+      if (AUTH_TOKEN) {
+        headers['Authorization'] = `Bearer ${AUTH_TOKEN}`;
+      }
+    }
+
+    const url = new URL(endpoint);
+    const client = url.protocol === 'https:' ? require('https') : http;
+
+    const req = client.request(
+      endpoint,
+      { method: 'POST', headers, timeout: 120000 },
       (res) => {
         let data = '';
         res.on('data', (chunk) => data += chunk);
         res.on('end', () => {
           try {
             const parsed = JSON.parse(data);
-            resolve(parsed.response || '');
+            if (API_FORMAT === 'openai') {
+              resolve(parsed.choices?.[0]?.message?.content || parsed.content?.[0]?.text || '');
+            } else {
+              resolve(parsed.response || '');
+            }
           } catch (e) {
-            reject(new Error('Invalid Ollama response'));
+            reject(new Error('Invalid response: ' + data.slice(0, 200)));
           }
         });
       }
     );
     req.on('error', reject);
-    req.on('timeout', () => reject(new Error('Ollama timeout')));
+    req.on('timeout', () => reject(new Error('AI request timed out')));
     req.write(postData);
     req.end();
   });
@@ -83,9 +128,22 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // Health check endpoint
+  if (req.method === 'GET' && req.url === '/health') {
+    res.writeHead(200);
+    res.end(JSON.stringify({
+      status: 'ok',
+      format: API_FORMAT,
+      model: config.default_model || 'unknown',
+      backend: BASE_URL,
+      version: '1.0.0'
+    }));
+    return;
+  }
+
   if (req.method !== 'POST' || req.url !== '/analyze') {
     res.writeHead(404);
-    res.end(JSON.stringify({ error: 'Not found. POST /analyze' }));
+    res.end(JSON.stringify({ error: 'Not found. Use GET /health or POST /analyze' }));
     return;
   }
 
@@ -109,9 +167,9 @@ const server = http.createServer(async (req, res) => {
         title: title || ''
       });
 
-      log(`Analyzing ${type} | URL: ${url?.slice(0, 60)}...`);
+      log(`Analyzing ${type} | Model: ${config.default_model} | URL: ${url?.slice(0, 60)}...`);
 
-      const aiResponse = await queryOllama(userPrompt);
+      const aiResponse = await queryAI(userPrompt, promptConfig.system, config.default_model);
       const insights = extractJSON(aiResponse);
 
       if (!insights || !Array.isArray(insights)) {
@@ -153,7 +211,7 @@ const server = http.createServer(async (req, res) => {
           severity: 'medium',
           title: '⚠️ AI Error',
           description: e.message.includes('ECONNREFUSED')
-            ? 'Cannot connect to Ollama. Run: ollama serve'
+            ? `Cannot connect to AI backend at ${BASE_URL}. Ensure Ollama or your proxy is running.`
             : e.message,
           source: 'heuristic'
         }],
@@ -165,9 +223,17 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, HOST, () => {
   log(`✅ Scout server running at http://${HOST}:${PORT}`);
+  log(`   API format: ${API_FORMAT}`);
+  log(`   Backend: ${BASE_URL}`);
+  log(`   Model: ${config.default_model || 'mistral:7b'}`);
+  if (AUTH_TOKEN) log(`   Auth: configured`);
   log('');
-  log('Make sure Ollama is running:');
-  log('  ollama serve');
+  log('Make sure your AI backend is running:');
+  if (API_FORMAT === 'openai') {
+    log('  ANTHROPIC_BASE_URL=http://localhost:11434 ollama serve');
+  } else {
+    log('  ollama serve');
+  }
   log('');
   log('Then load the extension in your browser and start surfing.');
   log('Press Ctrl+C to stop.');

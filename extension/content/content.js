@@ -72,6 +72,27 @@
       keywords: ['breaking', 'exclusive', 'sources say', 'reportedly', 'allegedly'],
       analyzer: window.ScoutNewsAnalyzer
     },
+    chat: {
+      patterns: [
+        /claude\.ai/,
+        /chat\.openai/,
+        /chatgpt/,
+        /gemini\.google/,
+        /bard\.google/,
+        /discord\.com/,
+        /app\.slack/,
+        /teams\.microsoft/,
+        /web\.whatsapp/,
+        /web\.telegram/,
+        /messages\.google/,
+        /messenger\.com/,
+        /intercom/,
+        /crisp\.chat/,
+        /tawk\.to/
+      ],
+      keywords: ['message', 'chat', 'send', 'reply', 'conversation', 'thread'],
+      analyzer: window.ScoutChatAnalyzer
+    },
     code: {
       patterns: [
         /github\.com/,
